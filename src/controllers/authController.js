@@ -41,9 +41,12 @@ exports.signup = catchAsync(async (req, res, next) => {
     });
   }
 
+  console.log("data recieved", req.body);
+
   const newUser = await User.create({
     name: req.body.name,
     email: req.body.email,
+    phoneNo: req.body.phoneNo,
     password: req.body.password,
   });
 
