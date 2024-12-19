@@ -139,14 +139,14 @@ exports.isLoggedIn = async (req, res, next) => {
       }
 
       // Check if the user changed the password after the token was issued
-      if (currentUser.changedPasswordAfter(decoded.iat)) {
-        return res.status(400).json({ message: "Password changed. Please log in again." });
-      }
+      // if (currentUser.changedPasswordAfter(decoded.iat)) {
+      //   return res.status(400).json({ message: "Password changed. Please log in again." });
+      // }
 
       console.log("Successfully Logged In");
       return res.status(200).json({ userId: currentUser._id });
     } catch (err) {
-      // If any error occurs, send an error response
+      console.log(err);
       return res.status(400).json({ message: "Invalid token. Please log in again." });
     }
   }
