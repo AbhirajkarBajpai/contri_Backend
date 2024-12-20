@@ -87,12 +87,19 @@ exports.login = catchAsync(async (req, res, next) => {
   // Find the user based on email or phone number
   const query = isEmail ? { email: emailOrPhoneNo } : { phoneNo: emailOrPhoneNo };
   const user = await User.findOne(query).select("+password");
-  const isPassCorr= await user.correctPassword(password, user.password);
-
-  if (!user || !(isPassCorr)) {
+  if(!user){
     return res.status(404).json({
       status: "fail",
-      message: "Incorrect email/phone number or password",
+      message: "Email/PhoneNo not found",
+    });
+  }
+
+  const isPassCorr= await user.correctPassword(password, user.password);
+
+  if (!(isPassCorr)) {
+    return res.status(400).json({
+      status: "fail",
+      message: "password incorrect!",
     });
   }
   createSendToken(user, 200, res);
