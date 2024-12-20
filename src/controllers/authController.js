@@ -179,7 +179,7 @@ exports.isLoggedIn = async (req, res, next) => {
       // }
 
       console.log("Successfully Logged In");
-      return res.status(200).json({ userId: currentUser._id });
+      return res.status(200).json({ userId: currentUser._id, user:currentUser });
     } catch (err) {
       console.log(err);
       return res.status(400).json({ message: "Invalid token. Please log in again." });
