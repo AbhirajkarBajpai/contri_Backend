@@ -53,23 +53,51 @@ exports.signup = catchAsync(async (req, res, next) => {
   createSendToken(newUser, 201, res);
 });
 
+// exports.login = catchAsync(async (req, res, next) => {
+//   const { email, password } = req.body;
+//   if (!email || !password) {
+//     return res.status(404).json({
+//       status: "fail",
+//       message: "Please provide email and password!",
+//     });
+//   }
+//   const user = await User.findOne({ email }).select("+password");
+//   if (!user || !(await user.correctPassword(password, user.password))) {
+//     return res.status(404).json({
+//       status: "fail",
+//       message: "Incorrect email or password",
+//     });
+//   }
+//   createSendToken(user, 200, res);
+// });
+
+
 exports.login = catchAsync(async (req, res, next) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(404).json({
+  const { emailOrPhoneNo, password } = req.body;
+  if (!emailOrPhoneNo || !password) {
+    return res.status(400).json({
       status: "fail",
-      message: "Please provide email and password!",
+      message: "Please provide email/phone number and password!",
     });
   }
-  const user = await User.findOne({ email }).select("+password");
-  if (!user || !(await user.correctPassword(password, user.password))) {
+
+  // Determine if the input is an email or phone number
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailOrPhoneNo);
+
+  // Find the user based on email or phone number
+  const query = isEmail ? { email: emailOrPhoneNo } : { phoneNo: emailOrPhoneNo };
+  const user = await User.findOne(query).select("+password");
+  const isPassCorr= await user.correctPassword(password, user.password);
+
+  if (!user || !(isPassCorr)) {
     return res.status(404).json({
       status: "fail",
-      message: "Incorrect email or password",
+      message: "Incorrect email/phone number or password",
     });
   }
   createSendToken(user, 200, res);
 });
+
 
 exports.logout = (req, res) => {
   res.cookie("jwt", "loggedout", {
