@@ -1,30 +1,107 @@
 const Group = require("../models/Group");
 const User = require("../models/User");
 const Expense = require("../models/Expense");
+const TempUser = require("../models/TempUser");
+
+const createOrFetchTempUser = async (name, phoneNo) => {
+  try {
+    if (!name || !phoneNo) {
+      return { message: "Name and Phone Number are required." };
+    }
+    let tempUser = await TempUser.findOne({ phoneNo });
+    if (tempUser) {
+      return {
+        message: "User already exists.",
+        userId: tempUser._id,
+      };
+    }
+    tempUser = new TempUser({
+      name,
+      phoneNo,
+      groups: [], 
+    });
+
+    const savedUser = await tempUser.save();
+    return{
+      message: "TempUser created successfully!",
+      userId: savedUser._id,
+    };
+  } catch (error) {
+    console.error("Error handling TempUser:", error);
+    return {
+      message: "An error occurred while processing the TempUser.",
+      error: error.message,
+    };
+  }
+};
+
 
 exports.createGroup = async (req, res) => {
   try {
     const { name, members } = req.body;
     const createdBy = req.user.id;
-
-    const validMembers = await User.find({ _id: { $in: members } });
-    if (validMembers.length !== members.length) {
-      return res.status(400).json({ message: "Some members are invalid." });
+    if (!name || !members || members.length === 0) {
+      return res.status(400).json({ message: "Group name and members are required." });
     }
-
-    const group = new Group({ name, createdBy, members });
+    const memberIds = [];
+    memberIds.push(createdBy);
+    for (const member of members) {
+      const { name: name, phone } = member;
+      if (!name || !phone) {
+        return res.status(400).json({ message: "Each member must have a name and phone number." });
+      }
+      let user = await User.findOne({ phoneNo:phone });
+      if (user) {
+        memberIds.push(user._id);
+      } else {
+        const tempUserResponse = await createOrFetchTempUser(name, phone);
+        if (tempUserResponse.error) {
+          return res.status(500).json({ message: "Error creating or fetching TempUser.", error: tempUserResponse.error });
+        }
+        memberIds.push(tempUserResponse.userId);
+      }
+    }
+    const group = new Group({ name, createdBy, members: memberIds });
     await group.save();
-
     await User.updateMany(
-      { _id: { $in: members } },
-      { $addToSet: { groups: group._id } } // $addToSet to prevent duplicates
+      { _id: { $in: memberIds } },
+      { $addToSet: { groups: group._id } }
     );
-
+    await TempUser.updateMany(
+      { _id: { $in: memberIds } },
+      { $addToSet: { groups: group._id } }
+    );
     res.status(201).json({ message: "Group created successfully", group });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error creating group:", error);
+    res.status(500).json({ message: "An error occurred while creating the group.", error: error.message });
   }
 };
+
+
+// exports.createGroup = async (req, res) => {
+//   try {
+//     const { name, members } = req.body;
+//     const createdBy = req.user.id;
+
+//     const validMembers = await User.find({ _id: { $in: members } });
+//     if (validMembers.length !== members.length) {
+//       return res.status(400).json({ message: "Some members are invalid." });
+//     }
+
+//     const group = new Group({ name, createdBy, members });
+//     await group.save();
+
+//     await User.updateMany(
+//       { _id: { $in: members } },
+//       { $addToSet: { groups: group._id } } 
+//     );
+
+//     res.status(201).json({ message: "Group created successfully", group });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 
 exports.addGroupMembers = async (req, res) => {
   try {

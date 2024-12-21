@@ -1,7 +1,9 @@
-const { promisify } = require('util');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const catchAsync = require('../utils/CatchAsync');
+const { promisify } = require("util");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const Group = require("../models/Group");
+const TempUser = require("../models/TempUser");
+const catchAsync = require("../utils/CatchAsync");
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -43,13 +45,33 @@ exports.signup = catchAsync(async (req, res, next) => {
 
   console.log("data recieved", req.body);
 
+  const tempUser = await TempUser.findOne({ phoneNo: req.body.phoneNo });
+
+  let assignedGroups = [];
+  if (tempUser) {
+    assignedGroups = tempUser.groups;
+  }
+
   const newUser = await User.create({
     name: req.body.name,
     email: req.body.email,
     phoneNo: req.body.phoneNo,
     password: req.body.password,
+    groups: assignedGroups,
   });
 
+  if (tempUser) {
+    await Group.updateMany(
+      { _id: { $in: assignedGroups } },
+      { $addToSet: { members: newUser._id } } // Add the new user ID.
+    ); 
+    await Group.updateMany(
+      { _id: { $in: assignedGroups } },
+      { $pull: { members: tempUser._id } } // Remove the temporary user ID.
+    );
+    await TempUser.deleteOne({ _id: tempUser._id });
+    console.log(`Temporary user with ID ${tempUser._id} removed.`);
+  }
   createSendToken(newUser, 201, res);
 });
 
@@ -71,7 +93,6 @@ exports.signup = catchAsync(async (req, res, next) => {
 //   createSendToken(user, 200, res);
 // });
 
-
 exports.login = catchAsync(async (req, res, next) => {
   const { emailOrPhoneNo, password } = req.body;
   if (!emailOrPhoneNo || !password) {
@@ -85,18 +106,20 @@ exports.login = catchAsync(async (req, res, next) => {
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailOrPhoneNo);
 
   // Find the user based on email or phone number
-  const query = isEmail ? { email: emailOrPhoneNo } : { phoneNo: emailOrPhoneNo };
+  const query = isEmail
+    ? { email: emailOrPhoneNo }
+    : { phoneNo: emailOrPhoneNo };
   const user = await User.findOne(query).select("+password");
-  if(!user){
+  if (!user) {
     return res.status(404).json({
       status: "fail",
       message: "Email/PhoneNo not found",
     });
   }
 
-  const isPassCorr= await user.correctPassword(password, user.password);
+  const isPassCorr = await user.correctPassword(password, user.password);
 
-  if (!(isPassCorr)) {
+  if (!isPassCorr) {
     return res.status(400).json({
       status: "fail",
       message: "password incorrect!",
@@ -104,7 +127,6 @@ exports.login = catchAsync(async (req, res, next) => {
   }
   createSendToken(user, 200, res);
 });
-
 
 exports.logout = (req, res) => {
   res.cookie("jwt", "loggedout", {
@@ -157,7 +179,6 @@ exports.protect = catchAsync(async (req, res, next) => {
   next();
 });
 
-
 exports.isLoggedIn = async (req, res, next) => {
   if (req.cookies.jwt) {
     try {
@@ -179,13 +200,17 @@ exports.isLoggedIn = async (req, res, next) => {
       // }
 
       console.log("Successfully Logged In");
-      return res.status(200).json({ userId: currentUser._id, user:currentUser });
+      return res
+        .status(200)
+        .json({ userId: currentUser._id, user: currentUser });
     } catch (err) {
       console.log(err);
-      return res.status(400).json({ message: "Invalid token. Please log in again." });
+      return res
+        .status(400)
+        .json({ message: "Invalid token. Please log in again." });
     }
   }
-  // If no JWT token 
+  // If no JWT token
   return res.status(400).json({ message: "User not logged in." });
 };
 

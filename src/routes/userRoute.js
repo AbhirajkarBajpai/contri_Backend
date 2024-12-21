@@ -11,5 +11,4 @@ router.get('/isUserLoggedIn', authController.isLoggedIn);
 router.use(authController.protect); 
 router.get('/getUserGroups', userController.getUserGroups);
 
-
 module.exports = router;
