@@ -213,7 +213,6 @@ exports.deleteGroup = async (req, res) => {
     if (!group) {
       return res.status(404).json({ message: "Group not found." });
     }
-
     if (group.createdBy.toString() !== userId) {
       return res.status(403).json({
         message: "You are not authorized to delete this group.",
@@ -221,6 +220,11 @@ exports.deleteGroup = async (req, res) => {
     }
     // Remove the group from each member's groups array
     await User.updateMany(
+      { _id: { $in: group.members } },
+      { $pull: { groups: groupId } }
+    );
+    
+    await TempUser.updateMany(
       { _id: { $in: group.members } },
       { $pull: { groups: groupId } }
     );
