@@ -13,7 +13,7 @@ exports.getUserGroups = async (req, res) => {
     });
 
     if (!user || !user.groups || user.groups.length === 0) {
-      return res.status(404).json({ message: 'No groups found for this user.' });
+      return res.status(404).json({ message: 'No groups found for this user.', groups:[], });
     }
 
     res.status(200).json({

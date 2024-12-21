@@ -8,8 +8,8 @@ router.post('/signup', authController.signup);
 router.post('/login', authController.login);
 router.get('/logout', authController.logout);
 router.get('/isUserLoggedIn', authController.isLoggedIn);
+router.use(authController.protect); 
 router.get('/getUserGroups', userController.getUserGroups);
 
-// router.use(authController.protect);  ---> this will be required at time of [profile update , password reset etc etc]
 
 module.exports = router;
