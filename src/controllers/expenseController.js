@@ -7,24 +7,22 @@ exports.addExpense = async (req, res) => {
       req.body;
     const createdBy = req.user.id;
 
-    // Fetch the group
     const group = await Group.findById(groupId);
     if (!group) return res.status(404).json({ message: "Group not found." });
 
     const members = group.members.map((member) => member.toString());
 
-    // Validate selected users are group members
     const isValidUsers = selectedUsers.every((userId) =>
       members.includes(userId)
     );
+
     if (!isValidUsers)
       return res
         .status(400)
         .json({ message: "Invalid users selected for splitting." });
 
-    // Validate manual splits against selected users
-    const isValidSplit = manualSplits.every((split) =>
-      selectedUsers.includes(split.user)
+    const isValidSplit = manualSplits.every((split) =>{
+      return selectedUsers.includes(split.user)}
     );
     if (!isValidSplit)
       return res.status(400).json({ message: "Invalid manual split details." });
@@ -63,7 +61,6 @@ exports.addExpense = async (req, res) => {
       }
     });
 
-    // Filter out settlements with zero amount
     group.groupSettelmentDetails = groupSettelmentDetails.filter(
       (settlement) => settlement.amount !== 0
     );
@@ -94,21 +91,23 @@ function calculateSplitWithManuals(
   selectedUsers,
   paidBy
 ) {
-  // Initialize split details with manual splits
+
   const splitDetails = manualSplits.map((split) => ({
     userPaid: paidBy,
     user2: split.user,
-    amount: -split.amount, // Manual splits are considered as credits (negative)
+    amount: -split.amount, 
   }));
 
-  // Calculate the total amount already allocated via manual splits
   const totalManualAmount = manualSplits.reduce(
     (sum, split) => sum + split.amount,
     0
   );
 
-  // Calculate the remaining amount to split (if `isInclude` is true)
+  console.log("tmA",totalManualAmount);
+
   const remainingAmount = amount - totalManualAmount;
+
+  console.log("rA", remainingAmount);
 
   if (manualSplits.some((split) => split.isInclude) && remainingAmount > 0) {
     // Calculate equal split for remaining amount among the selected users
@@ -131,12 +130,17 @@ function calculateSplitWithManuals(
     });
   }
 
+
+
   // Ensure each selected user has a split detail
+  console.log("split Details", splitDetails);
   selectedUsers.forEach((userId) => {
     if (!splitDetails.find((split) => split.user === userId)) {
       splitDetails.push({ userPaid: paidBy, user2: split.user, amount: 0 });
     }
   });
+
+  console.log("pass4");
 
   return splitDetails;
 }
