@@ -21,9 +21,9 @@ exports.addExpense = async (req, res) => {
         .status(400)
         .json({ message: "Invalid users selected for splitting." });
 
-    const isValidSplit = manualSplits.every((split) =>{
-      return selectedUsers.includes(split.user)}
-    );
+    const isValidSplit = manualSplits.every((split) => {
+      return selectedUsers.includes(split.user);
+    });
     if (!isValidSplit)
       return res.status(400).json({ message: "Invalid manual split details." });
 
@@ -36,7 +36,6 @@ exports.addExpense = async (req, res) => {
       createdBy
     );
 
-    // managing entire group net split
     splitDetails.forEach(({ userPaid, user2, amount }) => {
       const existingSettlement = groupSettelmentDetails.find(
         (settlement) =>
@@ -91,11 +90,10 @@ function calculateSplitWithManuals(
   selectedUsers,
   paidBy
 ) {
-
   const splitDetails = manualSplits.map((split) => ({
     userPaid: paidBy,
     user2: split.user,
-    amount: -split.amount, 
+    amount: -split.amount,
   }));
 
   const totalManualAmount = manualSplits.reduce(
@@ -103,44 +101,32 @@ function calculateSplitWithManuals(
     0
   );
 
-  console.log("tmA",totalManualAmount);
-
   const remainingAmount = amount - totalManualAmount;
 
-  console.log("rA", remainingAmount);
-
-  if (manualSplits.some((split) => split.isInclude) && remainingAmount > 0) {
-    // Calculate equal split for remaining amount among the selected users
-    const equalSplitAmount = remainingAmount / selectedUsers.length;
-
-    // Update split details for each selected user
+  if (remainingAmount > 0) {
+    const totalCurrInclUser =
+      selectedUsers.length -
+      manualSplits.filter((split) => !split.isInclude).length;
+    const equalSplitAmount = remainingAmount / totalCurrInclUser;
     selectedUsers.forEach((userId) => {
-      const existingSplit = splitDetails.find((split) => split.user === userId);
-      if (existingSplit) {
-        // If user already has a manual split, add the equal split to it
+      if (
+        manualSplits.some((split) => split.user === userId && split.isInclude)
+      ) {
+        const existingSplit = splitDetails.find(
+          (split) => split.user2 === userId
+        );
         existingSplit.amount -= equalSplitAmount;
-      } else {
-        // Otherwise, create a new split entry
+      } else if (!manualSplits.some((split) => split.user === userId)) {
         splitDetails.push({
           userPaid: paidBy,
-          user2: split.user,
+          user2: userId,
           amount: -equalSplitAmount,
         });
+      } else {
+        console.log("something Wrong!");
       }
     });
   }
-
-
-
-  // Ensure each selected user has a split detail
-  console.log("split Details", splitDetails);
-  selectedUsers.forEach((userId) => {
-    if (!splitDetails.find((split) => split.user === userId)) {
-      splitDetails.push({ userPaid: paidBy, user2: split.user, amount: 0 });
-    }
-  });
-
-  console.log("pass4");
 
   return splitDetails;
 }
