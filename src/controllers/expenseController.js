@@ -131,6 +131,28 @@ function calculateSplitWithManuals(
   return splitDetails;
 }
 
+exports.getExpenseDetails = async (req, res) => {
+  try {
+    const expenseId  = req.params.expenseId;
+    const expense = await Expense.findById(expenseId);
+    if (!expense) {
+      return res.status(404).json({ message: "Requested Expense Not Found!" });
+    }
+    res.status(200).json({
+      message: "Expense fetched successfully.",
+      data:{
+        description: expense.description,
+        createdBy: expense.createdBy,
+        amount: expense.amount,
+        splitDetails: expense.splitDetails,
+        date:expense.date,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.resolveExpense = async (req, res) => {
   try {
     const { groupId, payingUserId, receivingUserId, amount } = req.body;

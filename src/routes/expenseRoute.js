@@ -7,6 +7,7 @@ const router = express.Router();
 router.use(authController.protect);
 
 router.post('/addExpense',expenseController.addExpense);
+router.get('/getExpense/:expenseId',expenseController.getExpenseDetails);
 router.post('/settel',expenseController.resolveExpense);
 
 
