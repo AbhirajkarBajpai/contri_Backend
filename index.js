@@ -21,9 +21,9 @@ app.use('/api/v1/expense', expenseRoute);
 app.use('/api/v1/user', userRoute);
 app.use('/api/v1/group', groupRoute);
 
-// app.get('/', (req, res) => {
-//   res.send('Hello, Express!');
-// });
+app.get('/', (req, res) => {
+  res.send('Hello, Express!');
+});
 
 mongoose.connect(`mongodb+srv://21it3001:${process.env.MongoPass}@cluster0.dphm3.mongodb.net/`)
   .then(() => console.log('MongoDB connected'))
