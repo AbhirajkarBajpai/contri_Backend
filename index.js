@@ -11,14 +11,12 @@ const app = express(); // Initialize the app first
 
 const PORT = process.env.PORT || 3000;
 
-// CORS Configuration
 app.use(cors({ credentials: true, origin: "http://localhost:3000" }));
 
 // Middleware
 app.use(cookieParser());
 app.use(express.json());
 
-// Route Handlers
 app.use('/api/v1/expense', expenseRoute);
 app.use('/api/v1/user', userRoute);
 app.use('/api/v1/group', groupRoute);
