@@ -19,6 +19,7 @@ const createSendToken = (user, statusCode, res) => {
     ),
     httpOnly: true,
     sameSite:'none',
+    domain: "vercel.app",
   };
   if (process.env.NODE_ENV === "production") cookieOptions.secure = true;
 
