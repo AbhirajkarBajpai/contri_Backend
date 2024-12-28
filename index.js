@@ -11,7 +11,7 @@ const app = express(); // Initialize the app first
 
 const PORT = process.env.PORT || 3000;
 
-app.use(cors({ credentials: true, origin: "http://localhost:3000" }));
+app.use(cors({ credentials: true, origin: "https://contri-frontend.vercel.app" }));
 
 // Middleware
 app.use(cookieParser());
