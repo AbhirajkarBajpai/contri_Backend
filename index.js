@@ -25,7 +25,7 @@ app.get('/', (req, res) => {
   res.send('Hello, Express!');
 });
 
-mongoose.connect(`mongodb+srv://21it3001:${process.env.MongoPass}@cluster0.dphm3.mongodb.net/`, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(`mongodb+srv://21it3001:${process.env.MongoPass}@cluster0.dphm3.mongodb.net/`)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
