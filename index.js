@@ -9,6 +9,8 @@ require("dotenv").config();
 
 const app = express(); // Initialize the app first
 
+app.set("trust proxy", 1);
+
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({ credentials: true, origin:  ["http://localhost:3000", "https://contri-frontend.vercel.app"] }));

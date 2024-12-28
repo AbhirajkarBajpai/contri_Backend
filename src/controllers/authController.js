@@ -17,6 +17,9 @@ const createSendToken = (user, statusCode, res) => {
     expires: new Date(
       Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
     ),
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
   };
   if (process.env.NODE_ENV === "production") cookieOptions.secure = true;
 
@@ -63,7 +66,7 @@ exports.signup = catchAsync(async (req, res, next) => {
     await Group.updateMany(
       { _id: { $in: assignedGroups } },
       { $addToSet: { members: newUser._id } } // Add the new user ID.
-    ); 
+    );
     await Group.updateMany(
       { _id: { $in: assignedGroups } },
       { $pull: { members: tempUser._id } } // Remove the temporary user ID.
