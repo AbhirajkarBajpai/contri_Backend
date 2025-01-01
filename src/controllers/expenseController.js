@@ -47,9 +47,13 @@ exports.addExpense = async (req, res) => {
 
       if (existingSettlement) {
         if (existingSettlement.user1.toString() === userPaid.toString()) {
-          existingSettlement.amount += amount;
+          existingSettlement.isSettled === "Yes"
+            ? (existingSettlement.amount = amount)
+            : (existingSettlement.amount += amount);
         } else {
-          existingSettlement.amount -= amount;
+          existingSettlement.isSettled === "Yes"
+            ? (existingSettlement.amount = -amount)
+            : (existingSettlement.amount -= amount);
         }
       } else {
         groupSettelmentDetails.push({
@@ -133,19 +137,19 @@ function calculateSplitWithManuals(
 
 exports.getExpenseDetails = async (req, res) => {
   try {
-    const expenseId  = req.params.expenseId;
+    const expenseId = req.params.expenseId;
     const expense = await Expense.findById(expenseId);
     if (!expense) {
       return res.status(404).json({ message: "Requested Expense Not Found!" });
     }
     res.status(200).json({
       message: "Expense fetched successfully.",
-      data:{
+      data: {
         description: expense.description,
         createdBy: expense.createdBy,
         amount: expense.amount,
         splitDetails: expense.splitDetails,
-        date:expense.date,
+        date: expense.date,
       },
     });
   } catch (error) {
@@ -200,6 +204,49 @@ exports.resolveExpense = async (req, res) => {
     res.status(200).json({
       message: "Settlement resolved successfully.",
       groupSettelmentDetails: group.groupSettelmentDetails,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.requestResolve = async (req, res) => {
+  try {
+    const { groupId, payingUserId, receivingUserId, amount } = req.body;
+
+    // Fetch the group
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ message: "Group not found." });
+    }
+
+    // Check settlement details between users
+    const settlement = group.groupSettelmentDetails.find(
+      (detail) =>
+        (detail.user1.toString() === payingUserId &&
+          detail.user2.toString() === receivingUserId) ||
+        (detail.user1.toString() === receivingUserId &&
+          detail.user2.toString() === payingUserId)
+    );
+
+    if (!settlement) {
+      return res
+        .status(400)
+        .json({ message: "No settlement exists between these users." });
+    }
+
+    if (settlement.isSettled === "No") {
+      settlement.isSettled = "Requested";
+    } else {
+      return res.status(200).json({
+        message: "Settlement either resolved or requested Already!",
+      });
+    }
+
+    await group.save();
+
+    res.status(200).json({
+      message: "Settlement resolved requested successfully.",
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
