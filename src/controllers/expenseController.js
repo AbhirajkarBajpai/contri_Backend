@@ -212,7 +212,7 @@ exports.resolveExpense = async (req, res) => {
 
 exports.requestResolve = async (req, res) => {
   try {
-    const { groupId, payingUserId, receivingUserId, amount } = req.body;
+    const { groupId, payingUserId, receivingUserId } = req.body;
 
     // Fetch the group
     const group = await Group.findById(groupId);
