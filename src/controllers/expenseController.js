@@ -47,13 +47,19 @@ exports.addExpense = async (req, res) => {
 
       if (existingSettlement) {
         if (existingSettlement.user1.toString() === userPaid.toString()) {
-          existingSettlement.isSettled === "Yes"
-            ? (existingSettlement.amount = amount)
-            : (existingSettlement.amount += amount);
+          if (existingSettlement.isSettled === "Yes") {
+            existingSettlement.amount = amount;
+            existingSettlement.isSettled = "No";
+          } else {
+            existingSettlement.amount += amount;
+          }
         } else {
-          existingSettlement.isSettled === "Yes"
-            ? (existingSettlement.amount = -amount)
-            : (existingSettlement.amount -= amount);
+          if (existingSettlement.isSettled === "Yes") {
+            existingSettlement.amount = -amount;
+            existingSettlement.isSettled = "No";
+          } else {
+            existingSettlement.amount -= amount;
+          }
         }
       } else {
         groupSettelmentDetails.push({
@@ -183,21 +189,23 @@ exports.resolveExpense = async (req, res) => {
     }
 
     // Adjust the settlement amount
-    const isPayingUserUser1 = settlement.user1.toString() === payingUserId;
-    const amountToSettle = Math.min(Math.abs(settlement.amount), amount);
+    // const isPayingUserUser1 = settlement.user1.toString() === payingUserId;
+    // const amountToSettle = Math.min(Math.abs(settlement.amount), amount);
 
-    if (isPayingUserUser1) {
-      settlement.amount -= amountToSettle;
+    if (settlement.isSettled === "No" || settlement.isSettled === "Requested") {
+      settlement.isSettled = "Yes";
     } else {
-      settlement.amount += amountToSettle;
+      return res.status(200).json({
+        message: "Settlement resolved Already!",
+      });
     }
 
     // Remove settlement if the amount becomes 0
-    if (settlement.amount === 0) {
-      group.groupSettelmentDetails = group.groupSettelmentDetails.filter(
-        (detail) => detail !== settlement
-      );
-    }
+    // if (settlement.amount === 0) {
+    //   group.groupSettelmentDetails = group.groupSettelmentDetails.filter(
+    //     (detail) => detail !== settlement
+    //   );
+    // }
 
     await group.save();
 
