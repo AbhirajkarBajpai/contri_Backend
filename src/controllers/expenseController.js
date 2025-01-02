@@ -260,3 +260,65 @@ exports.requestResolve = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.deleteExpense = async (req, res) => {
+  try {
+    const expenseId = req.params.expenseId;
+    const expense = await Expense.findById(expenseId);
+    if (!expense) {
+      return res.status(404).json({ message: "Requested Expense Not Found!" });
+    }
+    const groupId = expense.group;
+    const group = await Group.findById(groupId);
+    if(!group) return res.status(400).json({message:"Group Not Found"});
+    const expenseSplit = expense.splitDetails;
+    const groupSettelmentDetails = group.groupSettelmentDetails || [];
+
+    expenseSplit.forEach(({ userPaid, user2, amount }) => {
+      const existingSettlement = groupSettelmentDetails.find(
+        (settlement) =>
+          (settlement.user1.toString() === userPaid.toString() &&
+            settlement.user2.toString() === user2.toString()) ||
+          (settlement.user1.toString() === user2.toString() &&
+            settlement.user2.toString() === userPaid.toString())
+      );
+
+      if (existingSettlement) {
+        if (existingSettlement.user1.toString() === userPaid.toString()) {
+          if (
+            existingSettlement.isSettled === "Yes" ||
+            existingSettlement.isSettled === "Requested"
+          ) {
+            console.log("already Settled or requested");
+          } else {
+            existingSettlement.amount -= amount;
+          }
+        } else {
+          if (
+            existingSettlement.isSettled === "Yes" ||
+            existingSettlement.isSettled === "Requested"
+          ) {
+            console.log("already Settled or requested");
+          } else {
+            existingSettlement.amount += amount;
+          }
+        }
+      }
+    });
+
+    group.groupSettelmentDetails = groupSettelmentDetails.filter(
+      (settlement) => settlement.amount !== 0
+    );
+
+    group.expenses = group.expenses.filter(
+      (exp) => exp._id.toString() !== expense._id.toString()
+    );
+    await group.save();
+    await expense.deleteOne();
+    res.status(200).json({
+      message: "Expense Successfully Deleted!",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

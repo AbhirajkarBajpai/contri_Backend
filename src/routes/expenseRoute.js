@@ -8,6 +8,7 @@ router.use(authController.protect);
 
 router.post('/addExpense',expenseController.addExpense);
 router.get('/getExpense/:expenseId',expenseController.getExpenseDetails);
+router.post('/delExpense/:expenseId',expenseController.deleteExpense);
 router.post('/settel',expenseController.resolveExpense);
 router.post('/reqSettel',expenseController.requestResolve);
 
