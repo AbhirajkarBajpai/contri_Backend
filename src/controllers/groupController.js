@@ -18,11 +18,11 @@ const createOrFetchTempUser = async (name, phoneNo) => {
     tempUser = new TempUser({
       name,
       phoneNo,
-      groups: [], 
+      groups: [],
     });
 
     const savedUser = await tempUser.save();
-    return{
+    return {
       message: "TempUser created successfully!",
       userId: savedUser._id,
     };
@@ -35,49 +35,60 @@ const createOrFetchTempUser = async (name, phoneNo) => {
   }
 };
 
-
 exports.createGroup = async (req, res) => {
   try {
     const { name, members } = req.body;
     const createdBy = req.user.id;
     if (!name || !members || members.length === 0) {
-      return res.status(400).json({ message: "Group name and members are required." });
+      return res
+        .status(400)
+        .json({ message: "Group name and members are required." });
     }
     const memberIds = [];
-    memberIds.push(createdBy);
+    memberIds.push({ memberId: createdBy, memberType: "User" });
     for (const member of members) {
       const { name: name, phone } = member;
       if (!name || !phone) {
-        return res.status(400).json({ message: "Each member must have a name and phone number." });
+        return res
+          .status(400)
+          .json({ message: "Each member must have a name and phone number." });
       }
-      let user = await User.findOne({ phoneNo:phone });
+      let user = await User.findOne({ phoneNo: phone });
       if (user) {
-        memberIds.push(user._id);
+        memberIds.push({ memberId: user._id, memberType: "User" });
       } else {
         const tempUserResponse = await createOrFetchTempUser(name, phone);
         if (tempUserResponse.error) {
-          return res.status(500).json({ message: "Error creating or fetching TempUser.", error: tempUserResponse.error });
+          return res.status(500).json({
+            message: "Error creating or fetching TempUser.",
+            error: tempUserResponse.error,
+          });
         }
-        memberIds.push(tempUserResponse.userId);
+        memberIds.push({
+          memberId: tempUserResponse.userId,
+          memberType: "TempUser",
+        });
       }
     }
     const group = new Group({ name, createdBy, members: memberIds });
     await group.save();
     await User.updateMany(
-      { _id: { $in: memberIds } },
+      { _id: { $in: memberIds.map((m) => m.memberId) } },
       { $addToSet: { groups: group._id } }
     );
     await TempUser.updateMany(
-      { _id: { $in: memberIds } },
+      { _id: { $in: memberIds.map((m) => m.memberId) } },
       { $addToSet: { groups: group._id } }
     );
     res.status(201).json({ message: "Group created successfully", group });
   } catch (error) {
     console.error("Error creating group:", error);
-    res.status(500).json({ message: "An error occurred while creating the group.", error: error.message });
+    res.status(500).json({
+      message: "An error occurred while creating the group.",
+      error: error.message,
+    });
   }
 };
-
 
 // exports.createGroup = async (req, res) => {
 //   try {
@@ -94,7 +105,7 @@ exports.createGroup = async (req, res) => {
 
 //     await User.updateMany(
 //       { _id: { $in: members } },
-//       { $addToSet: { groups: group._id } } 
+//       { $addToSet: { groups: group._id } }
 //     );
 
 //     res.status(201).json({ message: "Group created successfully", group });
@@ -154,7 +165,7 @@ exports.removeGroupMember = async (req, res) => {
   try {
     const { groupId } = req.params;
     const { memberId } = req.body;
-    const userId = req.user.id; 
+    const userId = req.user.id;
     const group = await Group.findById(groupId);
     if (!group) {
       return res.status(404).json({ message: "Group not found." });
@@ -218,20 +229,18 @@ exports.deleteGroup = async (req, res) => {
         message: "You are not authorized to delete this group.",
       });
     }
-    // Remove the group from each member's groups array
+
     await User.updateMany(
-      { _id: { $in: group.members } },
-      { $pull: { groups: groupId } }
-    );
-    
-    await TempUser.updateMany(
-      { _id: { $in: group.members } },
+      { _id: { $in: group.members.map(m => m.memberId) } },
       { $pull: { groups: groupId } }
     );
 
-    // Delete all expenses related to the group
+    await TempUser.updateMany(
+      { _id: { $in: group.members.map(m => m.memberId) } },
+      { $pull: { groups: groupId } }
+    );
+
     await Expense.deleteMany({ group: groupId });
-    // Delete the group
     await group.deleteOne();
     res.status(200).json({ message: "Group deleted successfully." });
   } catch (error) {
@@ -266,14 +275,13 @@ exports.getGroupDetails = async (req, res) => {
   try {
     const { groupId } = req.params;
 
-    // Fetch the group with members populated
     const group = await Group.findById(groupId)
-      .populate("members", "name email")
+      .populate("createdBy", "name")
       .populate({
         path: "expenses",
         populate: {
-          path: "splitDetails.userPaid splitDetails.user2", // Populate payer and receiver details in expenses
-          select: "name email", // Include name and email of users in expense details
+          path: "splitDetails.userPaid splitDetails.user2",
+          select: "name",
         },
       });
 
@@ -281,14 +289,21 @@ exports.getGroupDetails = async (req, res) => {
       return res.status(404).json({ message: "Group not found." });
     }
 
-    // Formatting then sending
+    let groupmembers = await Promise.all(
+      group.members.map(async (member) => {
+        const model = member.memberType === "User" ? User : TempUser;
+        return await model.findById(member.memberId, "name");
+      })
+    );
+    
+
     res.status(200).json({
       message: "Group details fetched successfully.",
       group: {
         id: group._id,
         name: group.name,
         createdBy: group.createdBy,
-        members: group.members,
+        members: groupmembers,
         expenses: group.expenses,
         groupSettelmentDetails: group.groupSettelmentDetails,
       },

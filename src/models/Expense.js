@@ -7,8 +7,8 @@ const ExpenseSchema = new mongoose.Schema({
   description: { type: String },
   splitDetails: [
     {
-      userPaid: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-      user2: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      userPaid: { type: mongoose.Schema.Types.ObjectId },
+      user2: { type: mongoose.Schema.Types.ObjectId },
       amount: { type: Number, required: true },
     },
   ],

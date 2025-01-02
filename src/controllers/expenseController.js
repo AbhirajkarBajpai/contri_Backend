@@ -10,7 +10,7 @@ exports.addExpense = async (req, res) => {
     const group = await Group.findById(groupId);
     if (!group) return res.status(404).json({ message: "Group not found." });
 
-    const members = group.members.map((member) => member.toString());
+    const members = group.members.map((member) => member.memberId.toString());
 
     const isValidUsers = selectedUsers.every((userId) =>
       members.includes(userId)

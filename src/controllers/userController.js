@@ -8,7 +8,7 @@ exports.getUserGroups = async (req, res) => {
       path: 'groups',
       populate: {
         path: 'members',
-        select: 'name email', // Populate member details
+        select: 'name',
       },
     });
 
