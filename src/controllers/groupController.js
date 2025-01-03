@@ -231,12 +231,12 @@ exports.deleteGroup = async (req, res) => {
     }
 
     await User.updateMany(
-      { _id: { $in: group.members.map(m => m.memberId) } },
+      { _id: { $in: group.members.map((m) => m.memberId) } },
       { $pull: { groups: groupId } }
     );
 
     await TempUser.updateMany(
-      { _id: { $in: group.members.map(m => m.memberId) } },
+      { _id: { $in: group.members.map((m) => m.memberId) } },
       { $pull: { groups: groupId } }
     );
 
@@ -273,12 +273,23 @@ exports.getGroupDebts = async (req, res) => {
 
 exports.getGroupDetails = async (req, res) => {
   try {
-    const { groupId } = req.params;
+    const { groupId, pageNo } = req.params;
+    const limit = 5;
+    const page = parseInt(pageNo) || 1;
+    const skip = (page - 1) * limit;
 
+    const reqGroup = await Group.findById(groupId).populate({
+      path: "expenses",
+    });
+    const totalExpenses = reqGroup.expenses.length;
+    const totalPages = Math.ceil(totalExpenses / limit);
+
+    // Fetch group details
     const group = await Group.findById(groupId)
       .populate("createdBy", "name")
       .populate({
         path: "expenses",
+        options: { skip, limit },
         populate: {
           path: "splitDetails.userPaid splitDetails.user2",
           select: "name",
@@ -289,14 +300,15 @@ exports.getGroupDetails = async (req, res) => {
       return res.status(404).json({ message: "Group not found." });
     }
 
+    // Fetch group members
     let groupmembers = await Promise.all(
       group.members.map(async (member) => {
         const model = member.memberType === "User" ? User : TempUser;
         return await model.findById(member.memberId, "name");
       })
     );
-    
 
+    // Return group details with pagination info
     res.status(200).json({
       message: "Group details fetched successfully.",
       group: {
@@ -307,8 +319,54 @@ exports.getGroupDetails = async (req, res) => {
         expenses: group.expenses,
         groupSettelmentDetails: group.groupSettelmentDetails,
       },
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalExpenses,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+// exports.getGroupDetails = async (req, res) => {
+//   try {
+//     const { groupId, pageNo } = req.params;
+
+//     const group = await Group.findById(groupId)
+//       .populate("createdBy", "name")
+//       .populate({
+//         path: "expenses",
+//         populate: {
+//           path: "splitDetails.userPaid splitDetails.user2",
+//           select: "name",
+//         },
+//       });
+
+//     if (!group) {
+//       return res.status(404).json({ message: "Group not found." });
+//     }
+
+//     let groupmembers = await Promise.all(
+//       group.members.map(async (member) => {
+//         const model = member.memberType === "User" ? User : TempUser;
+//         return await model.findById(member.memberId, "name");
+//       })
+//     );
+
+//     res.status(200).json({
+//       message: "Group details fetched successfully.",
+//       group: {
+//         id: group._id,
+//         name: group.name,
+//         createdBy: group.createdBy,
+//         members: groupmembers,
+//         expenses: group.expenses,
+//         groupSettelmentDetails: group.groupSettelmentDetails,
+//       },
+//     });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
