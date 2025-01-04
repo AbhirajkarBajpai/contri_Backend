@@ -320,7 +320,8 @@ exports.getGroupDetails = async (req, res) => {
         groupSettelmentDetails: group.groupSettelmentDetails,
       },
       pagination: {
-        currentPage: page,
+        currentPage:
+          group.expenses.length > 0 ? page : page === 1 ? page : page - 1,
         totalPages,
         totalExpenses,
       },
