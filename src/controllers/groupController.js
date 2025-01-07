@@ -2,7 +2,7 @@ const Group = require("../models/Group");
 const User = require("../models/User");
 const Expense = require("../models/Expense");
 const TempUser = require("../models/TempUser");
-const redisClient = require('../../redisClient'); 
+const redisClient = require("../../redisClient");
 
 const createOrFetchTempUser = async (name, phoneNo) => {
   try {
@@ -243,6 +243,20 @@ exports.deleteGroup = async (req, res) => {
 
     await Expense.deleteMany({ group: groupId });
     await group.deleteOne();
+
+    //Delete group data from Redis
+    const groupExpenseKey = `GroupExpenseInfo:${groupId}`;
+    const groupInfoKey = `GroupInfo:${groupId}`;
+
+    const groupExpenseExists = await redisClient.exists(groupExpenseKey);
+    if (groupExpenseExists) {
+      await redisClient.del(groupExpenseKey);
+    }
+    const groupInfoExists = await redisClient.exists(groupInfoKey);
+    if (groupInfoExists) {
+      await redisClient.del(groupInfoKey);
+    }
+
     res.status(200).json({ message: "Group deleted successfully." });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -292,12 +306,15 @@ exports.getGroupDetails = async (req, res) => {
       console.log("fetch from cache");
       const groupExpenseInfo = JSON.parse(cachedGroupExpenses);
       const groupInfo = JSON.parse(cachedGroupInfo);
-      const currPageExpenses = groupExpenseInfo.expenses.slice(skip, skip + limit);
+      const currPageExpenses = groupExpenseInfo.expenses.slice(
+        skip,
+        skip + limit
+      );
       const totalExpenses = groupExpenseInfo.expenses.length;
       const totalPages = Math.ceil(totalExpenses / limit);
 
       return res.status(200).json({
-        message: 'Group details fetched successfully (from cache).',
+        message: "Group details fetched successfully (from cache).",
         group: {
           ...groupInfo,
           expenses: currPageExpenses,
@@ -314,13 +331,13 @@ exports.getGroupDetails = async (req, res) => {
 
     // If not  in cache
     const group = await Group.findById(groupId)
-      .populate('createdBy', 'name')
+      .populate("createdBy", "name")
       .populate({
-        path: 'expenses',
+        path: "expenses",
       });
 
     if (!group) {
-      return res.status(404).json({ message: 'Group not found.' });
+      return res.status(404).json({ message: "Group not found." });
     }
 
     const totalExpenses = group.expenses.length;
@@ -329,17 +346,17 @@ exports.getGroupDetails = async (req, res) => {
 
     let groupmembers = await Promise.all(
       group.members.map(async (member) => {
-        const model = member.memberType === 'User' ? User : TempUser;
-        return await model.findById(member.memberId, 'name');
+        const model = member.memberType === "User" ? User : TempUser;
+        return await model.findById(member.memberId, "name");
       })
     );
 
     const groupExpenseInfo = {
       groupSettelmentDetails: group.groupSettelmentDetails,
-      expenses: group.expenses, 
+      expenses: group.expenses,
     };
 
-    const Info={ ...groupExpenseInfo, expenses: currPageExpenses }
+    const Info = { ...groupExpenseInfo, expenses: currPageExpenses };
 
     const groupInfo = {
       id: group._id,
@@ -349,12 +366,14 @@ exports.getGroupDetails = async (req, res) => {
     };
 
     await Promise.all([
-      redisClient.set(groupExpenseKey, JSON.stringify(groupExpenseInfo), { EX: 1800 }),
+      redisClient.set(groupExpenseKey, JSON.stringify(groupExpenseInfo), {
+        EX: 1800,
+      }),
       redisClient.set(groupInfoKey, JSON.stringify(groupInfo), { EX: 1800 }),
     ]);
 
     res.status(200).json({
-      message: 'Group details fetched successfully (from DB).',
+      message: "Group details fetched successfully (from DB).",
       group: {
         ...groupInfo,
         ...Info,
@@ -367,7 +386,7 @@ exports.getGroupDetails = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error in getGroupDetails:', error);
+    console.error("Error in getGroupDetails:", error);
     res.status(500).json({ message: error.message });
   }
 };
