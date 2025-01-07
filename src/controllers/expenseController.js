@@ -1,5 +1,6 @@
 const Expense = require("../models/Expense");
 const Group = require("../models/Group");
+const redisClient = require("../../redisClient");
 
 exports.addExpense = async (req, res) => {
   try {
@@ -87,6 +88,21 @@ exports.addExpense = async (req, res) => {
     // Add the expense to the group
     group.expenses.push(expense._id);
     await group.save();
+
+    // --- Update Redis Cache for GroupExpenseInfo ---
+    const updatedGroup = await Group.findById(groupId).populate({
+      path: "expenses",
+    });
+
+    const groupExpenseKey = `GroupExpenseInfo:${groupId}`;
+    const groupExpenseInfo = {
+      groupSettelmentDetails: updatedGroup.groupSettelmentDetails,
+      expenses: updatedGroup.expenses,
+    };
+
+    await redisClient.set(groupExpenseKey, JSON.stringify(groupExpenseInfo), {
+      EX: 1800,
+    });
 
     res.status(201).json({ message: "Expense added successfully", expense });
   } catch (error) {
@@ -270,7 +286,7 @@ exports.deleteExpense = async (req, res) => {
     }
     const groupId = expense.group;
     const group = await Group.findById(groupId);
-    if(!group) return res.status(400).json({message:"Group Not Found"});
+    if (!group) return res.status(400).json({ message: "Group Not Found" });
     const expenseSplit = expense.splitDetails;
     const groupSettelmentDetails = group.groupSettelmentDetails || [];
 
@@ -315,6 +331,22 @@ exports.deleteExpense = async (req, res) => {
     );
     await group.save();
     await expense.deleteOne();
+
+    //Update Redis Cache
+    const updatedGroup = await Group.findById(groupId).populate({
+      path: "expenses",
+    });
+
+    const groupExpenseKey = `GroupExpenseInfo:${groupId}`;
+    const groupExpenseInfo = {
+      groupSettelmentDetails: updatedGroup.groupSettelmentDetails,
+      expenses: updatedGroup.expenses,
+    };
+
+    await redisClient.set(groupExpenseKey, JSON.stringify(groupExpenseInfo), {
+      EX: 1800,
+    });
+
     res.status(200).json({
       message: "Expense Successfully Deleted!",
     });

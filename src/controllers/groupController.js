@@ -2,6 +2,7 @@ const Group = require("../models/Group");
 const User = require("../models/User");
 const Expense = require("../models/Expense");
 const TempUser = require("../models/TempUser");
+const redisClient = require('../../redisClient'); 
 
 const createOrFetchTempUser = async (name, phoneNo) => {
   try {
@@ -274,49 +275,89 @@ exports.getGroupDebts = async (req, res) => {
 exports.getGroupDetails = async (req, res) => {
   try {
     const { groupId, pageNo } = req.params;
-    console.log(pageNo);
     const limit = 5;
     const page = parseInt(pageNo) || 1;
     const skip = (page - 1) * limit;
 
-    // Fetch group details
-    const group = await Group.findById(groupId)
-      .populate("createdBy", "name")
-      .populate({
-        path: "expenses",
-        populate: {
-          path: "splitDetails.userPaid splitDetails.user2",
-          select: "name",
+    // Redis Keys
+    const groupExpenseKey = `GroupExpenseInfo:${groupId}`;
+    const groupInfoKey = `GroupInfo:${groupId}`;
+
+    const [cachedGroupExpenses, cachedGroupInfo] = await Promise.all([
+      redisClient.get(groupExpenseKey),
+      redisClient.get(groupInfoKey),
+    ]);
+
+    if (cachedGroupExpenses && cachedGroupInfo) {
+      console.log("fetch from cache");
+      const groupExpenseInfo = JSON.parse(cachedGroupExpenses);
+      const groupInfo = JSON.parse(cachedGroupInfo);
+      const currPageExpenses = groupExpenseInfo.expenses.slice(skip, skip + limit);
+      const totalExpenses = groupExpenseInfo.expenses.length;
+      const totalPages = Math.ceil(totalExpenses / limit);
+
+      return res.status(200).json({
+        message: 'Group details fetched successfully (from cache).',
+        group: {
+          ...groupInfo,
+          expenses: currPageExpenses,
+          groupSettelmentDetails: groupExpenseInfo.groupSettelmentDetails,
         },
+        pagination: {
+          currentPage:
+            currPageExpenses.length > 0 ? page : page === 1 ? page : page - 1,
+          totalPages,
+          totalExpenses,
+        },
+      });
+    }
+
+    // If not  in cache
+    const group = await Group.findById(groupId)
+      .populate('createdBy', 'name')
+      .populate({
+        path: 'expenses',
       });
 
     if (!group) {
-      return res.status(404).json({ message: "Group not found." });
+      return res.status(404).json({ message: 'Group not found.' });
     }
 
     const totalExpenses = group.expenses.length;
     const totalPages = Math.ceil(totalExpenses / limit);
-
     const currPageExpenses = group.expenses.slice(skip, skip + limit);
 
-    // Fetch group members
     let groupmembers = await Promise.all(
       group.members.map(async (member) => {
-        const model = member.memberType === "User" ? User : TempUser;
-        return await model.findById(member.memberId, "name");
+        const model = member.memberType === 'User' ? User : TempUser;
+        return await model.findById(member.memberId, 'name');
       })
     );
 
-    // Return group details with pagination info
+    const groupExpenseInfo = {
+      groupSettelmentDetails: group.groupSettelmentDetails,
+      expenses: group.expenses, 
+    };
+
+    const Info={ ...groupExpenseInfo, expenses: currPageExpenses }
+
+    const groupInfo = {
+      id: group._id,
+      name: group.name,
+      createdBy: group.createdBy,
+      members: groupmembers,
+    };
+
+    await Promise.all([
+      redisClient.set(groupExpenseKey, JSON.stringify(groupExpenseInfo), { EX: 1800 }),
+      redisClient.set(groupInfoKey, JSON.stringify(groupInfo), { EX: 1800 }),
+    ]);
+
     res.status(200).json({
-      message: "Group details fetched successfully.",
+      message: 'Group details fetched successfully (from DB).',
       group: {
-        id: group._id,
-        name: group.name,
-        createdBy: group.createdBy,
-        members: groupmembers,
-        expenses: currPageExpenses,
-        groupSettelmentDetails: group.groupSettelmentDetails,
+        ...groupInfo,
+        ...Info,
       },
       pagination: {
         currentPage:
@@ -326,6 +367,66 @@ exports.getGroupDetails = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('Error in getGroupDetails:', error);
     res.status(500).json({ message: error.message });
   }
 };
+
+// exports.getGroupDetails = async (req, res) => {
+//   try {
+//     const { groupId, pageNo } = req.params;
+//     console.log(pageNo);
+//     const limit = 5;
+//     const page = parseInt(pageNo) || 1;
+//     const skip = (page - 1) * limit;
+
+//     // Fetch group details
+//     const group = await Group.findById(groupId)
+//       .populate("createdBy", "name")
+//       .populate({
+//         path: "expenses",
+//         populate: {
+//           path: "splitDetails.userPaid splitDetails.user2",
+//           select: "name",
+//         },
+//       });
+
+//     if (!group) {
+//       return res.status(404).json({ message: "Group not found." });
+//     }
+
+//     const totalExpenses = group.expenses.length;
+//     const totalPages = Math.ceil(totalExpenses / limit);
+
+//     const currPageExpenses = group.expenses.slice(skip, skip + limit);
+
+//     // Fetch group members
+//     let groupmembers = await Promise.all(
+//       group.members.map(async (member) => {
+//         const model = member.memberType === "User" ? User : TempUser;
+//         return await model.findById(member.memberId, "name");
+//       })
+//     );
+
+//     // Return group details with pagination info
+//     res.status(200).json({
+//       message: "Group details fetched successfully.",
+//       group: {
+//         id: group._id,
+//         name: group.name,
+//         createdBy: group.createdBy,
+//         members: groupmembers,
+//         expenses: currPageExpenses,
+//         groupSettelmentDetails: group.groupSettelmentDetails,
+//       },
+//       pagination: {
+//         currentPage:
+//           currPageExpenses.length > 0 ? page : page === 1 ? page : page - 1,
+//         totalPages,
+//         totalExpenses,
+//       },
+//     });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
