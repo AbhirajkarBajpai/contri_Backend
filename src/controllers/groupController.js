@@ -274,22 +274,16 @@ exports.getGroupDebts = async (req, res) => {
 exports.getGroupDetails = async (req, res) => {
   try {
     const { groupId, pageNo } = req.params;
+    console.log(pageNo);
     const limit = 5;
     const page = parseInt(pageNo) || 1;
     const skip = (page - 1) * limit;
-
-    const reqGroup = await Group.findById(groupId).populate({
-      path: "expenses",
-    });
-    const totalExpenses = reqGroup.expenses.length;
-    const totalPages = Math.ceil(totalExpenses / limit);
 
     // Fetch group details
     const group = await Group.findById(groupId)
       .populate("createdBy", "name")
       .populate({
         path: "expenses",
-        options: { skip, limit },
         populate: {
           path: "splitDetails.userPaid splitDetails.user2",
           select: "name",
@@ -299,6 +293,11 @@ exports.getGroupDetails = async (req, res) => {
     if (!group) {
       return res.status(404).json({ message: "Group not found." });
     }
+
+    const totalExpenses = group.expenses.length;
+    const totalPages = Math.ceil(totalExpenses / limit);
+
+    const currPageExpenses = group.expenses.slice(skip, skip + limit);
 
     // Fetch group members
     let groupmembers = await Promise.all(
@@ -316,12 +315,12 @@ exports.getGroupDetails = async (req, res) => {
         name: group.name,
         createdBy: group.createdBy,
         members: groupmembers,
-        expenses: group.expenses,
+        expenses: currPageExpenses,
         groupSettelmentDetails: group.groupSettelmentDetails,
       },
       pagination: {
         currentPage:
-          group.expenses.length > 0 ? page : page === 1 ? page : page - 1,
+          currPageExpenses.length > 0 ? page : page === 1 ? page : page - 1,
         totalPages,
         totalExpenses,
       },
@@ -330,44 +329,3 @@ exports.getGroupDetails = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
-// exports.getGroupDetails = async (req, res) => {
-//   try {
-//     const { groupId, pageNo } = req.params;
-
-//     const group = await Group.findById(groupId)
-//       .populate("createdBy", "name")
-//       .populate({
-//         path: "expenses",
-//         populate: {
-//           path: "splitDetails.userPaid splitDetails.user2",
-//           select: "name",
-//         },
-//       });
-
-//     if (!group) {
-//       return res.status(404).json({ message: "Group not found." });
-//     }
-
-//     let groupmembers = await Promise.all(
-//       group.members.map(async (member) => {
-//         const model = member.memberType === "User" ? User : TempUser;
-//         return await model.findById(member.memberId, "name");
-//       })
-//     );
-
-//     res.status(200).json({
-//       message: "Group details fetched successfully.",
-//       group: {
-//         id: group._id,
-//         name: group.name,
-//         createdBy: group.createdBy,
-//         members: groupmembers,
-//         expenses: group.expenses,
-//         groupSettelmentDetails: group.groupSettelmentDetails,
-//       },
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
