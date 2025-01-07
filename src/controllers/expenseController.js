@@ -225,6 +225,19 @@ exports.resolveExpense = async (req, res) => {
 
     await group.save();
 
+    //Update Redis
+    const updatedGroup = await Group.findById(groupId);
+    const groupExpenseKey = `GroupExpenseInfo:${groupId}`;
+    const cachedCurrExpense = await redisClient.get(groupExpenseKey);
+    const currExpense = JSON.parse(cachedCurrExpense);
+    const groupExpenseInfo = {
+      expenses: currExpense.expenses,
+      groupSettelmentDetails: updatedGroup.groupSettelmentDetails,
+    };
+    await redisClient.set(groupExpenseKey, JSON.stringify(groupExpenseInfo), {
+      EX: 1800,
+    });
+
     res.status(200).json({
       message: "Settlement resolved successfully.",
       groupSettelmentDetails: group.groupSettelmentDetails,
@@ -268,6 +281,19 @@ exports.requestResolve = async (req, res) => {
     }
 
     await group.save();
+
+    //Update Redis
+    const updatedGroup = await Group.findById(groupId);
+    const groupExpenseKey = `GroupExpenseInfo:${groupId}`;
+    const cachedCurrExpense = await redisClient.get(groupExpenseKey);
+    const currExpense = JSON.parse(cachedCurrExpense);
+    const groupExpenseInfo = {
+      expenses: currExpense.expenses,
+      groupSettelmentDetails: updatedGroup.groupSettelmentDetails,
+    };
+    await redisClient.set(groupExpenseKey, JSON.stringify(groupExpenseInfo), {
+      EX: 1800,
+    });
 
     res.status(200).json({
       message: "Settlement resolved requested successfully.",
