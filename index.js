@@ -10,7 +10,7 @@ require("dotenv").config();
 
 const app = express();
 
-app.use(authLimiter);
+// app.use(authLimiter);
 app.set("trust proxy", 1);
 
 const PORT = process.env.PORT || 3000;
