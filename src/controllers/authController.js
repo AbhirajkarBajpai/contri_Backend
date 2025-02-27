@@ -19,9 +19,9 @@ const createSendToken = (user, statusCode, res) => {
     ),
     httpOnly: true,
     secure: true,
-    sameSite: "none",
+    sameSite: "None",
   };
-  if (process.env.NODE_ENV === "production") cookieOptions.secure = true;
+  // if (process.env.NODE_ENV === "production") cookieOptions.secure = true;
 
   res.cookie("jwt", token, cookieOptions);
 
@@ -135,7 +135,7 @@ exports.logout = (req, res) => {
     expires: new Date(Date.now() + 10 * 1000),
     httpOnly: true,
     secure: true,
-    sameSite: "none",
+    sameSite: "None",
   });
   console.log("I am reached to logout");
   res.status(200).json({ status: "success" });
