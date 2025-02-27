@@ -136,6 +136,7 @@ exports.logout = (req, res) => {
     httpOnly: true,
     secure: true,
     sameSite: "None",
+    domain: ".vercel.app",
   });
   console.log("I am reached to logout");
   res.status(200).json({ status: "success" });
