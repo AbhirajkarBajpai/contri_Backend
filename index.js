@@ -5,10 +5,12 @@ const expenseRoute = require("./src/routes/expenseRoute");
 const groupRoute = require("./src/routes/groupRoute");
 const userRoute = require("./src/routes/userRoute");
 const cors = require("cors");
+const { authLimiter } = require("./src/middlewares/rateLimit");
 require("dotenv").config();
 
 const app = express();
 
+app.use(authLimiter);
 app.set("trust proxy", 1);
 
 const PORT = process.env.PORT || 3000;
