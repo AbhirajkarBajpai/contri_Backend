@@ -13,13 +13,14 @@ const signToken = (id) => {
 
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
+  console.log("check",process.env.NODE_ENV === "production");
   const cookieOptions = {
     expires: new Date(
       Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
     ),
     httpOnly: true,
-    secure: true,
-    sameSite: "None",
+    secure: process.env.NODE_ENV === "production",
+    // sameSite: "None",
   };
   // if (process.env.NODE_ENV === "production") cookieOptions.secure = true;
 
@@ -131,13 +132,12 @@ exports.login = catchAsync(async (req, res, next) => {
 });
 
 exports.logout = (req, res) => {
-  console.log("Received logout request");
+  console.log("Received logout request",process.env.NODE_ENV === "production");
   res.cookie("jwt", "", {
     expires: new Date(0),
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
+    secure: process.env.NODE_ENV === "production",
+    // sameSite: "none",
   });
 
   res.status(200).json({ status: "success" });
