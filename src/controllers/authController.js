@@ -133,14 +133,20 @@ exports.login = catchAsync(async (req, res, next) => {
 
 exports.logout = (req, res) => {
   console.log("Received logout request",process.env.NODE_ENV === "production");
-  res.cookie("jwt", "logout", {
+  const cookieOptions = {
     expires: new Date(Date.now() + 10 * 1000),
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
-  });
+  };
+  const token = "logout";
 
-  res.status(200).json({ status: "success" });
+
+  res.cookie("jwt", "logout", cookieOptions);
+  res.status(200).json({
+    status: "success",
+    token,
+  });
 };
 
 
