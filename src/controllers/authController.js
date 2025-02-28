@@ -78,23 +78,6 @@ exports.signup = catchAsync(async (req, res, next) => {
   createSendToken(newUser, 201, res);
 });
 
-// exports.login = catchAsync(async (req, res, next) => {
-//   const { email, password } = req.body;
-//   if (!email || !password) {
-//     return res.status(404).json({
-//       status: "fail",
-//       message: "Please provide email and password!",
-//     });
-//   }
-//   const user = await User.findOne({ email }).select("+password");
-//   if (!user || !(await user.correctPassword(password, user.password))) {
-//     return res.status(404).json({
-//       status: "fail",
-//       message: "Incorrect email or password",
-//     });
-//   }
-//   createSendToken(user, 200, res);
-// });
 
 exports.login = catchAsync(async (req, res, next) => {
   const { emailOrPhoneNo, password } = req.body;
@@ -140,7 +123,6 @@ exports.logout = (req, res) => {
     sameSite: "Strict",
   };
   const token = "logout";
-
 
   res.cookie("jwt", "logout", cookieOptions);
   res.status(200).json({
@@ -226,32 +208,3 @@ exports.isLoggedIn = async (req, res, next) => {
   // If no JWT token
   return res.status(400).json({ message: "User not logged in." });
 };
-
-// exports.isLoggedIn = async (req, res, next) => {
-//   if (req.cookies.jwt) {
-//     try {
-//       const decoded = await promisify(jwt.verify)(
-//         req.cookies.jwt,
-//         process.env.JWT_SECRET
-//       );
-
-//       const currentUser = await User.findById(decoded.id);
-//       if (!currentUser) {
-//         return next();
-//       }
-
-//       //Check if user changed password after the token was issued
-//       if (currentUser.changedPasswordAfter(decoded.iat)) {
-//         return next();
-//       }
-
-//       // THERE IS A LOGGED IN USER
-//       console.log("Successfully Logged In");
-//       res.locals.user = currentUser;
-//       return next();
-//     } catch (err) {
-//       return next();
-//     }
-//   }
-//   next();
-// };
