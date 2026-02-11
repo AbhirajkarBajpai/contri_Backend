@@ -11,23 +11,37 @@ const signToken = (id) => {
   });
 };
 
+// const createSendToken = (user, statusCode, res) => {
+//   const token = signToken(user._id);
+//   console.log("check",process.env.NODE_ENV === "production");
+//   const cookieOptions = {
+//     expires: new Date(
+//       Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
+//     ),
+//     httpOnly: true,
+//     secure: process.env.NODE_ENV === "production",
+//     sameSite: "None", 
+//   };
+//   // if (process.env.NODE_ENV === "production") cookieOptions.secure = true;
+
+//   res.cookie("jwt", token, cookieOptions);
+
+//   // Remove password from output
+//   user.password = undefined;
+
+//   res.status(statusCode).json({
+//     status: "success",
+//     token,
+//     data: {
+//       user,
+//     },
+//   });
+// };
+
+
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
-  console.log("check",process.env.NODE_ENV === "production");
-  const cookieOptions = {
-    expires: new Date(
-      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
-    ),
-    // httpOnly: true,
-    // secure: process.env.NODE_ENV === "production",
-    // sameSite: "Lax", 
-    // secure: true,
-  };
-  // if (process.env.NODE_ENV === "production") cookieOptions.secure = true;
 
-  res.cookie("jwt", token, cookieOptions);
-
-  // Remove password from output
   user.password = undefined;
 
   res.status(statusCode).json({
@@ -38,6 +52,7 @@ const createSendToken = (user, statusCode, res) => {
     },
   });
 };
+
 
 exports.signup = catchAsync(async (req, res, next) => {
   if (req.body.password.length < 8) {
@@ -115,98 +130,176 @@ exports.login = catchAsync(async (req, res, next) => {
   createSendToken(user, 200, res);
 });
 
-exports.logout = (req, res) => {
-  console.log("Received logout request",process.env.NODE_ENV === "production");
-  const cookieOptions = {
-    expires: new Date(Date.now() + 10 * 1000),
-    // httpOnly: true,
-    // secure: process.env.NODE_ENV === "production",
-    // sameSite: "Lax",
-    // secure: true,
-  };
-  const token = "logout";
+// exports.logout = (req, res) => {
+//   console.log("Received logout request",process.env.NODE_ENV === "production");
+//   const cookieOptions = {
+//     expires: new Date(Date.now() + 10 * 1000),
+//     httpOnly: true,
+//     secure: process.env.NODE_ENV === "production",
+//     sameSite: "None",
+//   };
+//   const token = "logout";
 
-  res.cookie("jwt", "logout", cookieOptions);
+//   res.cookie("jwt", "logout", cookieOptions);
+//   res.status(200).json({
+//     status: "success",
+//     token,
+//   });
+// };
+
+exports.logout = (req, res) => {
   res.status(200).json({
     status: "success",
-    token,
+    message: "Logged out successfully",
   });
 };
 
 
+
+// exports.protect = catchAsync(async (req, res, next) => {
+//   let token;
+//   if (
+//     req.headers.authorization &&
+//     req.headers.authorization.startsWith("Bearer")
+//   ) {
+//     token = req.headers.authorization.split(" ")[1];
+//   } else if (req.cookies.jwt) {
+//     token = req.cookies.jwt;
+//   }
+
+//   if (!token) {
+//     return res.status(401).json({
+//       status: "fail",
+//       message: "You are Not Logged In Please Log In to Access!",
+//     });
+//   }
+//   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+
+//   // Check if user still exists
+//   const currentUser = await User.findById(decoded.id);
+//   if (!currentUser) {
+//     return res.status(401).json({
+//       status: "fail",
+//       message: "The User Belonging To This Token Do No Longer Exist!",
+//     });
+//   }
+
+//   // Check if user changed password after the token was issued
+//   // if (currentUser.changedPasswordAfter(decoded.iat)) {
+//   //   return res.status(401).json({
+//   //     status: "fail",
+//   //     message: "User Recently Changed Password , Login Again!",
+//   //   });
+//   // }
+
+//   // GRANT ACCESS TO PROTECTED ROUTE
+//   req.user = currentUser;
+//   res.locals.user = currentUser;
+//   next();
+// });
+
+
 exports.protect = catchAsync(async (req, res, next) => {
   let token;
+
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer")
   ) {
     token = req.headers.authorization.split(" ")[1];
-  } else if (req.cookies.jwt) {
-    token = req.cookies.jwt;
   }
 
   if (!token) {
     return res.status(401).json({
       status: "fail",
-      message: "You are Not Logged In Please Log In to Access!",
+      message: "You are Not Logged In! Please log in.",
     });
   }
-  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
 
-  // Check if user still exists
+  const decoded = await promisify(jwt.verify)(
+    token,
+    process.env.JWT_SECRET
+  );
+
   const currentUser = await User.findById(decoded.id);
+
   if (!currentUser) {
     return res.status(401).json({
       status: "fail",
-      message: "The User Belonging To This Token Do No Longer Exist!",
+      message: "The user belonging to this token no longer exists.",
     });
   }
 
-  // Check if user changed password after the token was issued
-  // if (currentUser.changedPasswordAfter(decoded.iat)) {
-  //   return res.status(401).json({
-  //     status: "fail",
-  //     message: "User Recently Changed Password , Login Again!",
-  //   });
-  // }
-
-  // GRANT ACCESS TO PROTECTED ROUTE
   req.user = currentUser;
-  res.locals.user = currentUser;
   next();
 });
 
-exports.isLoggedIn = async (req, res, next) => {
-  if (req.cookies.jwt) {
-    try {
-      // Verify token
+exports.isLoggedIn = async (req, res) => {
+  try {
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      const token = req.headers.authorization.split(" ")[1];
+
       const decoded = await promisify(jwt.verify)(
-        req.cookies.jwt,
+        token,
         process.env.JWT_SECRET
       );
 
-      // Finding userId
       const currentUser = await User.findById(decoded.id);
+
       if (!currentUser) {
-        return res.status(400).json({ message: "User not found." });
+        return res.status(401).json({ message: "User not found." });
       }
 
-      // Check if the user changed the password after the token was issued
-      // if (currentUser.changedPasswordAfter(decoded.iat)) {
-      //   return res.status(400).json({ message: "Password changed. Please log in again." });
-      // }
-
-      console.log("Successfully Logged In");
-      return res
-        .status(200)
-        .json({ userId: currentUser._id, user: currentUser });
-    } catch (err) {
-      console.log(err);
-      return res
-        .status(400)
-        .json({ message: "Invalid token. Please log in again." });
+      return res.status(200).json({
+        userId: currentUser._id,
+        user: currentUser,
+      });
     }
+
+    return res.status(401).json({ message: "User not logged in." });
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid token." });
   }
-  // If no JWT token
-  return res.status(400).json({ message: "User not logged in." });
 };
+
+
+
+// exports.isLoggedIn = async (req, res, next) => {
+//   if (req.cookies.jwt) {
+//     try {
+//       // Verify token
+//       const decoded = await promisify(jwt.verify)(
+//         req.cookies.jwt,
+//         process.env.JWT_SECRET
+//       );
+
+//       // Finding userId
+//       const currentUser = await User.findById(decoded.id);
+//       if (!currentUser) {
+//         return res.status(400).json({ message: "User not found." });
+//       }
+
+//       // Check if the user changed the password after the token was issued
+//       // if (currentUser.changedPasswordAfter(decoded.iat)) {
+//       //   return res.status(400).json({ message: "Password changed. Please log in again." });
+//       // }
+
+//       console.log("Successfully Logged In");
+//       return res
+//         .status(200)
+//         .json({ userId: currentUser._id, user: currentUser });
+//     } catch (err) {
+//       console.log(err);
+//       return res
+//         .status(400)
+//         .json({ message: "Invalid token. Please log in again." });
+//     }
+//   }
+//   // If no JWT token
+//   return res.status(400).json({ message: "User not logged in." });
+// };
+
+
