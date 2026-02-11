@@ -18,10 +18,10 @@ const createSendToken = (user, statusCode, res) => {
     expires: new Date(
       Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
     ),
-    httpOnly: true,
+    // httpOnly: true,
     // secure: process.env.NODE_ENV === "production",
-    sameSite: "Lax", 
-    secure: true,
+    // sameSite: "Lax", 
+    // secure: true,
   };
   // if (process.env.NODE_ENV === "production") cookieOptions.secure = true;
 
@@ -119,10 +119,10 @@ exports.logout = (req, res) => {
   console.log("Received logout request",process.env.NODE_ENV === "production");
   const cookieOptions = {
     expires: new Date(Date.now() + 10 * 1000),
-    httpOnly: true,
+    // httpOnly: true,
     // secure: process.env.NODE_ENV === "production",
-    sameSite: "Lax",
-    secure: true,
+    // sameSite: "Lax",
+    // secure: true,
   };
   const token = "logout";
 
